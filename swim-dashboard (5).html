@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Breaststroke log</title>
+<style>
+:root{--bg:#eef4f6;--card:#fff;--ink:#0d2b3a;--mute:#5d7686;--line:#d3e0e6;--lc:#0b5fa5;--sc:#e8553d;--ok:#1a8a5a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Avenir Next","Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.rope{height:14px;background:repeating-linear-gradient(90deg,#e8553d 0 28px,#fff 28px 56px,#0b5fa5 56px 84px,#fff 84px 112px)}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:2rem;margin:.3em 0 .1em;letter-spacing:-.02em}
+h2{font-size:1.05rem;margin:0 0 10px}
+.sub{color:var(--mute);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+label{display:flex;flex-direction:column;font-size:.8rem;color:var(--mute);gap:3px}
+input,select,button{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+button{cursor:pointer;background:var(--ink);color:#fff;border-color:var(--ink)}
+button.ghost{background:#fff;color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--lc);outline-offset:1px}
+#err{color:var(--sc);font-size:.85rem;min-height:1.2em;margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;border-top:4px solid var(--lc)}
+.stat.SC{border-top-color:var(--sc)}
+.stat b{display:block;font-size:2rem;letter-spacing:-.02em;line-height:1.1}
+.stat small{color:var(--mute)}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
+@media(max-width:520px){.charts{grid-template-columns:1fr}}
+svg{width:100%;height:auto;display:block}
+svg text{font-size:11px;fill:var(--mute)}
+.legend{display:flex;gap:14px;font-size:.8rem;color:var(--mute);margin-top:4px;flex-wrap:wrap}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600;font-size:.8rem}
+.scroll{overflow-x:auto;max-height:340px;overflow-y:auto}
+ul{margin:0;padding-left:18px}li{margin:5px 0}
+.pb{background:#fff3c4;border-radius:4px;padding:0 5px;font-size:.75rem;font-weight:700}
+.empty{color:var(--mute);padding:30px 0;text-align:center}
+.neg{color:var(--ok)}
+.x{background:none;color:var(--mute);border:0;padding:0 6px}
+details summary{cursor:pointer;color:var(--mute)}
+.fg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:8px 0 14px}
+.hint{font-size:.7rem;line-height:1.25;color:var(--mute)}
+h3{font-size:.9rem;margin:14px 0 0}
+.chip{display:inline-block;background:#e6f0f5;border-radius:4px;padding:1px 7px;margin:0 6px 6px 0;font-size:.8rem}
+.x{font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="rope"></div>
+<main>
+<h1>Breaststroke log</h1>
+<p class="sub">50m and 100m, long course and short course. Add a swim, everything else updates.</p>
+
+<section class="card">
+<h2>Add a swim</h2>
+<div class="row">
+<label>Date<input type="date" id="fDate"></label>
+<label>Event<select id="fEv"><option value="50">50m</option><option value="100">100m</option></select></label>
+<label>Course<select id="fCo"><option value="LC">Long course (50m pool)</option><option value="SC">Short course (25m pool)</option></select></label>
+<label>Time<input id="fTime" placeholder="1:10.81 or 31.26" size="12" autocomplete="off"></label>
+<label>Type<select id="fType"><option value="race">Race</option><option value="timetrial">Time trial</option><option value="training">Training</option></select></label>
+<label>Note<input id="fNote" placeholder="optional" size="16"></label>
+<button id="add">Add swim</button>
+</div>
+<div id="err" role="alert"></div>
+</section>
+
+<section class="card">
+<div class="row">
+<label>Event<select id="vEv"><option value="all">Both</option><option value="50">50m</option><option value="100">100m</option></select></label>
+<label>Course<select id="vCo"><option value="all">Both</option><option value="LC">Long course</option><option value="SC">Short course</option></select></label>
+<label>Swim type<select id="vType"><option value="all">All</option><option value="race">Race</option><option value="timetrial">Time trial</option><option value="training">Training</option></select></label>
+<label>Charts<select id="vMode"><option value="overlay">Compare LC and SC together</option><option value="split">Separate LC and SC</option></select></label>
+</div>
+</section>
+
+<div id="stats" class="stats"></div>
+<div id="charts" class="charts"></div>
+
+<section class="card" id="cmp"></section>
+<section class="card"><h2>Insights</h2><ul id="ins"></ul></section>
+
+<section class="card" id="race">
+<h2>Race detail (from video)</h2>
+<p class="sub" style="margin:0 0 10px">Pick a swim, fill in what you can read from the video, then save. Every measurement is defined in the definitions section further down.</p>
+<label>Swim<select id="dSel"></select></label>
+<div id="dForm"></div><div id="dOut"></div>
+</section>
+
+<section class="card">
+<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Race analysis</h2>
+<label>Metric trend<select id="mSel"><option value="t15">15m time</option><option value="turn">Turn time (5m in to 15m out)</option><option value="pull">Breakout distance</option><option value="ptime">Breakout time</option><option value="pspeed">Pullout speed</option><option value="dps">Distance per stroke</option><option value="catstart">Dive speed (0–15m)</option><option value="catswim">Open-water speed</option><option value="catturn">Turn speed (wall execution)</option><option value="catfinish">Finish-length speed</option></select></label></div>
+<div id="aOut"></div>
+</section>
+
+<section class="card">
+<h2>Goals <small style="font-weight:400;color:var(--mute)">(shown as dashed lines, used for projections)</small></h2>
+<div class="row" id="goals"></div>
+</section>
+
+<section class="card"><h2>All swims</h2><div class="scroll" id="tbl"></div></section>
+
+<section class="card"><h2>Measurement definitions</h2><p class="sub" style="margin:0 0 8px">Use the same rule every time so races stay comparable.</p><div class="scroll" id="defs"></div></section>
+
+<section class="card">
+<h2>Data</h2>
+<div class="row">
+<button class="ghost" id="saveHtml">Save updated dashboard (.html)</button>
+<button class="ghost" id="expJson">Export JSON</button>
+<button class="ghost" id="expCsv">Export CSV</button>
+<label style="flex-direction:row;align-items:center;gap:6px">Import JSON <input type="file" id="imp" accept=".json"></label>
+<button class="ghost" id="sample">Load sample data</button>
+<button class="ghost" id="clear">Clear all</button>
+</div>
+<p class="sub" style="margin:10px 0 0">Swims are kept in this browser automatically. "Save updated dashboard" bakes your swims into a fresh copy of this file, so it keeps working if you move it or switch browser.</p>
+</section>
+</main>
+
+<script id="seed" type="application/json">{"swims": [{"id": "1790594560641729", "date": "2026-09-19", "event": 50, "course": "SC", "time": 31.9, "type": "race", "note": "Scarborough Riding League Gala", "detail": {"round": "Heat", "place": 2, "fps": null, "rt": null, "marks": null, "pulls": [null, null], "ptimes": [null, null], "strokes": [null, null], "kick": "", "nod": "", "flare": null}}, {"id": "1790594625641524", "date": "2026-08-21", "event": 50, "course": "LC", "time": 32.16, "type": "race", "note": "Slovakia - European Championships", "detail": {"round": "Heat", "place": null, "fps": null, "rt": 0.74, "marks": [7.6], "pulls": [12.5], "ptimes": [6], "strokes": [25], "kick": "", "nod": "", "flare": null}}, {"id": "1790594652063202", "date": "2026-08-08", "event": 50, "course": "LC", "time": 33.16, "type": "race", "note": "Manchester - Northern Wave"}, {"id": "179059468390368", "date": "2026-08-20", "event": 100, "course": "LC", "time": 72.81, "type": "race", "note": "Slovakia - European Championships", "detail": {"round": "Heat", "place": null, "fps": null, "rt": 0.74, "marks": [7.94, 29.32, 43.58], "pulls": [12.5, 9], "ptimes": [6.27, 4.85], "strokes": [20, 25], "kick": "", "nod": "", "flare": null}}, {"id": "1790594765127860", "date": "2026-07-11", "event": 50, "course": "SC", "time": 31.97, "type": "race", "note": "Cheshire - County Championships", "detail": {"round": "Heat", "place": null, "fps": null, "rt": null, "marks": [7.92, 11.33, 24.84], "pulls": [12, 9.5], "ptimes": [5.68, 4.75], "strokes": [8, 10], "kick": "", "nod": "", "flare": null}}, {"id": "1790594788836702", "date": "2026-04-18", "event": 50, "course": "SC", "time": 31.26, "type": "race", "note": "Harrogate - Yorkshire Championships", "detail": {"round": "", "place": null, "fps": null, "rt": null, "marks": [7.7, 10.84, 24.36], "pulls": [11, 8.5], "ptimes": [5.07, 3.65], "strokes": [8, 11], "kick": "", "nod": "", "flare": null}}, {"id": "1790594812694726", "date": "2025-10-25", "event": 50, "course": "SC", "time": 32.21, "type": "race", "note": "Sheffield - National Championships"}, {"id": "1790594843824178", "date": "2025-09-07", "event": 50, "course": "SC", "time": 32.59, "type": "race", "note": "Maidenhead - County Championships", "detail": {"round": "", "place": null, "fps": null, "rt": null, "marks": null, "pulls": [null, null], "ptimes": [null, null], "strokes": [8, 11], "kick": "", "nod": "", "flare": null}}, {"id": "179059486261733", "date": "2025-06-07", "event": 50, "course": "SC", "time": 32.48, "type": "race", "note": "Hart - Masters Meet"}, {"id": "1790594899988584", "date": "2026-04-18", "event": 100, "course": "SC", "time": 70.86, "type": "race", "note": "Harrogate - Yorkshire Championships", "detail": {"round": "", "place": null, "fps": null, "rt": null, "marks": [7.44, 11.01, 25.16, 28.8, 43.31, 47.35, 62.66], "pulls": [12, 9, 9, 8.5], "ptimes": [5.5, 4.27, 4.64, 4.4], "strokes": [7, 9, 9, 10], "kick": "", "nod": "", "flare": null}}, {"id": "1790594919412651", "date": "2025-10-26", "event": 100, "course": "SC", "time": 71.21, "type": "race", "note": "Sheffield - National Championships"}, {"id": "1790594943185783", "date": "2025-09-07", "event": 100, "course": "SC", "time": 72.57, "type": "race", "note": "Maidenhead - Masters Meet"}, {"id": "1790594957124861", "date": "2025-06-07", "event": 100, "course": "SC", "time": 72.64, "type": "race", "note": "Hart - Masters Meet"}, {"id": "1790610218530932", "date": "2024-05-12", "event": 50, "course": "SC", "time": 34.32, "type": "race", "note": "Maidenhead - Random"}, {"id": "1790610224344265", "date": "2024-05-12", "event": 100, "course": "SC", "time": 76.77, "type": "race", "note": "Maidenhead - Random"}], "goals": {"50-LC": 30, "50-SC": 29.5, "100-LC": 70, "100-SC": 67}, "saved": 1790667445157}</script>
+<script>
+const $=s=>document.querySelector(s),KEY='breaststroke-log-v1',EV=[50,100],CO=['LC','SC'];
+const CN={LC:'Long course',SC:'Short course'},TN={race:'Race',timetrial:'Time trial',training:'Training'};
+let state=JSON.parse($('#seed').textContent);
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&(s.saved||0)>(state.saved||0))state=s}catch(e){}
+state.swims=state.swims||[];state.goals=state.goals||{};
+const save=()=>{state.saved=Date.now();try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}};
+const avg=a=>a.reduce((x,y)=>x+y,0)/a.length,sd=a=>{const m=avg(a);return Math.sqrt(avg(a.map(x=>(x-m)**2)))};
+const DAY=864e5,today=()=>new Date().toISOString().slice(0,10);
+function parseT(s){const m=String(s).trim().replace(',','.').match(/^(?:(\d+):)?(\d{1,2}(?:\.\d{1,2})?)$/);if(!m)return null;const t=(m[1]?+m[1]*60:0)+ +m[2];return t>0?Math.round(t*100)/100:null}
+function fmt(t){if(t==null||isNaN(t))return '–';const m=Math.floor(t/60),s=t-m*60;return m?m+':'+s.toFixed(2).padStart(5,'0'):s.toFixed(2)}
+const dt=s=>new Date(s+'T12:00:00').getTime(),fd=s=>new Date(s+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const V=()=>({ev:$('#vEv').value,co:$('#vCo').value,ty:$('#vType').value,mode:$('#vMode').value});
+function list(ev,co,ty){return state.swims.filter(s=>s.event===ev&&s.course===co&&(ty==='all'||s.type===ty)).map(s=>({...s,d:dt(s.date)})).sort((a,b)=>a.d-b.d)}
+function pbIds(){const ids=new Set();for(const ev of EV)for(const co of CO){let m=1e9;for(const s of list(ev,co,'all')){if(s.time<m){m=s.time;ids.add(s.id)}}}return ids}
+function slope(p){const xs=p.map(q=>q.d/DAY/30.44),ys=p.map(q=>q.time),mx=avg(xs),my=avg(ys);let n=0,d=0;xs.forEach((x,i)=>{n+=(x-mx)*(ys[i]-my);d+=(x-mx)**2});return d?n/d:null}
+
+function chart(series,goals,op={}){
+ const W=620,H=250,P={l:52,r:14,t:14,b:28},all=series.flatMap(s=>s.pts);
+ if(!all.length)return '<div class="empty">No swims yet</div>';
+ let x0=Math.min(...all.map(p=>p.d)),x1=Math.max(...all.map(p=>p.d));if(x0===x1){x0-=15*DAY;x1+=15*DAY}
+ const ts=all.map(p=>p.time).concat(goals.map(g=>g.t));let y0=Math.min(...ts),y1=Math.max(...ts);const pad=(y1-y0||1)*.18;y0-=pad;y1+=pad;
+ const X=d=>P.l+(d-x0)/(x1-x0)*(W-P.l-P.r),Y=t=>{const f=(t-y0)/(y1-y0);return P.t+(op.invert?1-f:f)*(H-P.t-P.b)};
+ let o=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+ for(let i=0;i<=4;i++){const t=y0+(y1-y0)*i/4;o+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="#e3ecf0"/><text x="${P.l-6}" y="${Y(t)+4}" text-anchor="end">${(op.f||fmt)(t)}</text>`}
+ for(let i=0;i<=3;i++){const d=x0+(x1-x0)*i/3;o+=`<text x="${X(d)}" y="${H-8}" text-anchor="${i==0?'start':i==3?'end':'middle'}">${new Date(d).toLocaleDateString('en-GB',{month:'short',year:'2-digit'})}</text>`}
+ goals.forEach(g=>{o+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(g.t)}" y2="${Y(g.t)}" stroke="var(--${g.co.toLowerCase()})" stroke-dasharray="5 4" opacity=".7"/><text x="${W-P.r}" y="${Y(g.t)-4}" text-anchor="end">goal ${fmt(g.t)}</text>`});
+ series.forEach(s=>{const c=`var(--${s.co.toLowerCase()})`;if(!s.pts.length)return;
+  o+=`<polyline fill="none" stroke="${c}" stroke-width="1.5" opacity=".45" points="${s.pts.map(p=>X(p.d)+','+Y(p.time)).join(' ')}"/>`;
+  let m=1e9,path='';s.pts.forEach(p=>{if(!op.plain&&p.time<m){path+=(path?`H${X(p.d)}`:`M${X(p.d)},${Y(p.time)}`)+`V${Y(p.time)}`;m=p.time}});if(path)path+=`H${W-P.r}`;
+  o+=`<path d="${path}" fill="none" stroke="${c}" stroke-width="2.5"/>`;
+  m=1e9;s.pts.forEach(p=>{const pb=!op.plain&&p.time<m;if(pb)m=p.time;o+=`<circle cx="${X(p.d)}" cy="${Y(p.time)}" r="${pb?5.5:3.5}" fill="${pb||op.plain?c:'#fff'}" stroke="${c}" stroke-width="2"><title>${fd(p.date)} · ${(op.f||fmt)(p.time)} · ${TN[p.type]}${p.note?' · '+esc(p.note):''}</title></circle>`})});
+ return o+'</svg>'
+}
+
+function render(){
+ const v=V(),evs=EV.filter(e=>v.ev==='all'||+v.ev===e),cos=CO.filter(c=>v.co==='all'||v.co===c);
+ const cats=[];evs.forEach(e=>cos.forEach(c=>cats.push([e,c,list(e,c,v.ty)])));
+ // stats
+ $('#stats').innerHTML=cats.map(([e,c,L])=>{if(!L.length)return `<div class="stat ${c}"><small>${e}m ${CN[c]}</small><b>–</b><small>no swims yet</small></div>`;
+  const pb=Math.min(...L.map(p=>p.time)),pp=L.find(p=>p.time===pb),last=L[L.length-1],l5=L.slice(-5).map(p=>p.time);
+  return `<div class="stat ${c}"><small>${e}m ${CN[c]} PB</small><b>${fmt(pb)}</b><small>${fd(pp.date)} · ${L.length} swims<br>Latest ${fmt(last.time)} · last ${l5.length} avg ${fmt(avg(l5))}</small></div>`}).join('');
+ // charts
+ const goal=(e,c)=>state.goals[e+'-'+c]?[{co:c,t:state.goals[e+'-'+c]}]:[];
+ let ch='';
+ for(const e of evs){
+  if(v.mode==='overlay'){const S=cos.map(c=>({co:c,pts:list(e,c,v.ty)}));
+   ch+=`<div class="card"><h2>${e}m breaststroke</h2>${chart(S,cos.flatMap(c=>goal(e,c)))}<div class="legend">${cos.map(c=>`<span><i class="dot" style="background:var(--${c.toLowerCase()})"></i>${CN[c]}</span>`).join('')}<span>Faster is higher · solid line = PB progression · filled dot = PB</span></div></div>`}
+  else cos.forEach(c=>ch+=`<div class="card"><h2>${e}m ${CN[c].toLowerCase()}</h2>${chart([{co:c,pts:list(e,c,v.ty)}],goal(e,c))}<div class="legend"><span>Faster is higher · filled dot = PB</span></div></div>`)
+ }
+ $('#charts').innerHTML=ch;
+ // LC vs SC
+ const rows=evs.map(e=>{const a=list(e,'LC',v.ty),b=list(e,'SC',v.ty);if(!a.length||!b.length)return '';
+  const pl=Math.min(...a.map(p=>p.time)),ps=Math.min(...b.map(p=>p.time)),al=avg(a.slice(-5).map(p=>p.time)),as=avg(b.slice(-5).map(p=>p.time));
+  return `<tr><td>${e}m</td><td>${fmt(pl)}</td><td>${fmt(ps)}</td><td>${(pl-ps).toFixed(2)}s (${((pl/ps-1)*100).toFixed(1)}%)</td><td>${fmt(al)}</td><td>${fmt(as)}</td><td>${(al-as).toFixed(2)}s</td></tr>`}).join('');
+ $('#cmp').innerHTML=`<h2>Long course vs short course</h2>`+(rows?`<div class="scroll"><table><tr><th>Event</th><th>LC PB</th><th>SC PB</th><th>PB gap (LC slower by)</th><th>LC last-5 avg</th><th>SC last-5 avg</th><th>Avg gap</th></tr>${rows}</table></div>`:'<div class="empty">Log swims in both pools for an event to compare them.</div>');
+ // insights
+ const I=[],now=Date.now();
+ for(const [e,c,L] of cats){if(!L.length)continue;const n=`${e}m ${c}`,pb=Math.min(...L.map(p=>p.time)),pp=L.find(p=>p.time===pb);
+  if(L.length>1)I.push(`<b>${n}</b>: ${fmt(L[0].time)} → ${fmt(pb)}. That's ${(L[0].time-pb).toFixed(2)}s off since your first logged swim (${L.length} swims).`);
+  I.push(`<b>${n}</b>: PB set ${Math.round((now-pp.d)/DAY)} days ago (${fd(pp.date)}).`);
+  if(L.length>=3){const l5=L.slice(-5).map(p=>p.time);I.push(`<b>${n}</b>: last ${l5.length} swims average ${fmt(avg(l5))}, ${((avg(l5)/pb-1)*100).toFixed(1)}% off PB, spread ±${sd(l5).toFixed(2)}s.`)}
+  const r=L.filter(p=>now-p.d<=90*DAY);if(r.length>=3){const s=slope(r);if(s!=null)I.push(`<b>${n}</b>: last 90 days trending <span class="${s<0?'neg':''}">${s<0?'faster':'slower'} by ~${Math.abs(s).toFixed(2)}s a month</span>.`)}
+  const g=state.goals[e+'-'+c];if(g){if(pb<=g)I.push(`<b>${n}</b>: goal ${fmt(g)} hit. PB is ${(g-pb).toFixed(2)}s inside it.`);else{const r6=L.filter(p=>now-p.d<=180*DAY),s=r6.length>=3?slope(r6):null;I.push(`<b>${n}</b>: ${(pb-g).toFixed(2)}s to goal ${fmt(g)}.`+(s&&s<0&&(pb-g)/-s<=36?` At your 6-month trend that's roughly ${Math.max(1,Math.round((pb-g)/-s))} month(s) away (rough).`:''))}}
+  const rc=L.filter(p=>p.type==='race'),tr=L.filter(p=>p.type==='training');if(rc.length&&tr.length)I.push(`<b>${n}</b>: race average ${fmt(avg(rc.map(p=>p.time)))} vs training ${fmt(avg(tr.map(p=>p.time)))}, a ${(avg(tr.map(p=>p.time))-avg(rc.map(p=>p.time))).toFixed(2)}s difference.`)}
+ for(const c of cos){const a=list(50,c,v.ty),b=list(100,c,v.ty);if(a.length&&b.length&&v.ev==='all'){const p5=Math.min(...a.map(p=>p.time)),p1=Math.min(...b.map(p=>p.time));I.push(`<b>${c} fade</b>: your 100m PB is ${(p1-2*p5).toFixed(2)}s slower than double your 50m PB (ratio ${(p1/p5).toFixed(2)}×).`)}}
+ $('#ins').innerHTML=I.length?I.map(x=>`<li>${x}</li>`).join(''):'<div class="empty">Add a few swims to see insights.</div>';
+ // table
+ const ids=pbIds(),T=state.swims.filter(s=>(v.ev==='all'||+v.ev===s.event)&&(v.co==='all'||v.co===s.course)&&(v.ty==='all'||v.ty===s.type)).sort((a,b)=>a.date<b.date?1:-1);
+ $('#tbl').innerHTML=T.length?`<table><tr><th>Date</th><th>Event</th><th>Course</th><th>Time</th><th>Type</th><th>Note</th><th></th></tr>${T.map(s=>`<tr><td>${fd(s.date)}</td><td>${s.event}m</td><td>${s.course}</td><td>${fmt(s.time)} ${ids.has(s.id)?'<span class="pb">PB</span>':''} ${s.detail?'<span class="pb" style="background:#dbeafe">detail</span>':''}</td><td>${TN[s.type]}</td><td>${esc(s.note||'')}</td><td><button class="x" data-detail="${s.id}">detail</button><button class="x" data-del="${s.id}" title="Delete" aria-label="Delete swim">✕</button></td></tr>`).join('')}</table>`:'<div class="empty">Nothing logged yet. Add a swim above or load sample data below.</div>';
+ // goals
+ $('#goals').innerHTML=EV.flatMap(e=>CO.map(c=>`<label>${e}m ${c}<input data-goal="${e}-${c}" size="9" placeholder="e.g. 29.99" value="${state.goals[e+'-'+c]?fmt(state.goals[e+'-'+c]):''}"></label>`)).join('');detailSel();analysis()
+}
+
+// events
+$('#fDate').value=today();
+function add(){const t=parseT($('#fTime').value),d=$('#fDate').value;
+ if(!d)return $('#err').textContent='Pick a date.';
+ if(!t)return $('#err').textContent='Enter a time like 31.26 or 1:10.81.';
+ $('#err').textContent='';
+ state.swims.push({id:Date.now()+''+Math.floor(Math.random()*1e3),date:d,event:+$('#fEv').value,course:$('#fCo').value,time:t,type:$('#fType').value,note:$('#fNote').value.trim()});
+ $('#fTime').value='';$('#fNote').value='';save();render();$('#fTime').focus()}
+$('#add').onclick=add;$('#fTime').onkeydown=e=>{if(e.key==='Enter')add()};
+['#vEv','#vCo','#vType','#vMode'].forEach(s=>$(s).onchange=render);
+document.addEventListener('click',e=>{const id=e.target.dataset&&e.target.dataset.del;if(id){state.swims=state.swims.filter(s=>s.id!==id);save();render()}});
+document.addEventListener('change',e=>{const k=e.target.dataset&&e.target.dataset.goal;if(k){const t=parseT(e.target.value);if(t)state.goals[k]=t;else delete state.goals[k];save();render()}});
+function dl(n,t,ty){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:ty}));a.download=n;a.click()}
+$('#expJson').onclick=()=>dl('swim-log.json',JSON.stringify(state,null,1),'application/json');
+$('#expCsv').onclick=()=>dl('swim-log.csv','date,event,course,time_seconds,time,type,note\n'+state.swims.map(s=>[s.date,s.event,s.course,s.time,fmt(s.time),s.type,'"'+(s.note||'').replace(/"/g,'""')+'"'].join(',')).join('\n'),'text/csv');
+$('#saveHtml').onclick=()=>{$('#seed').textContent=JSON.stringify(state).replace(/</g,'\\u003c');dl('swim-dashboard.html','<!DOCTYPE html>\n'+document.documentElement.outerHTML,'text/html')};
+$('#imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!Array.isArray(j.swims))throw 0;state={swims:j.swims,goals:j.goals||{}};save();render()}catch(x){$('#err').textContent='That file is not a swim log JSON.'}};r.readAsText(f)};
+$('#sample').onclick=()=>{const base={'50-LC':32.4,'50-SC':30.9,'100-LC':73.5,'100-SC':70.4};
+ for(const k in base){const [e,c]=k.split('-');for(let i=0;i<8;i++)state.swims.push({id:'s'+k+i,date:new Date(Date.now()-(8-i)*21*DAY).toISOString().slice(0,10),event:+e,course:c,time:Math.round((base[k]-i*.14+((i*7)%5)*.09)*100)/100,type:i%3?'training':'race',note:i==0?'sample data':''})}
+ save();render()};
+$('#clear').onclick=()=>{if(confirm('Delete every swim and goal?')){state={swims:[],goals:{}};save();render()}};
+
+/* ---- race detail ---- */
+const DEF={
+ clock:['Clock zero','Start signal. Every mark is cumulative from it. If the signal is not visible, use the frame your feet leave the block and add your reaction time from the results sheet, and do that every time'],
+ t15:['15m mark','Top of the head crosses the 15m rope colour change, measured from the start wall. Use the first frame where the crown is on or past the line'],
+ in:['Turn in (5m)','Top of the head crosses the 5m mark (backstroke flags or first rope colour change) on the way into the wall'],
+ out:['Turn out (15m)','Top of the head crosses the 15m rope colour change on the way out. Turn time is out minus in, so it includes the touch, spin, push-off and pullout'],
+ bd:['Breakout distance','Metres from the wall to where the top of the head first breaks the surface after the pullout, to the nearest 0.5m. Use rope colour changes and floor markings as rulers'],
+ bt:['Breakout time','Seconds from your feet leaving the wall (the block, for the start) to the first frame where the top of the head breaks the surface'],
+ str:['Strokes per length','Count each pull cycle from breakout until the final approach to the wall. The pullout pull and the touch are not counted. One cycle is one pull plus recovery'],
+ rt:['Reaction time','From the results sheet: start signal to feet leaving the block. Leave blank if unavailable'],
+ kick:['Pullout kick width','Judge the first pullout of the race. Wide means heels clearly outside shoulder width at the widest point of the kick, narrow means inside hip width, otherwise OK'],
+ nod:['Head nod / hip drop','Yes if, on any breath, the head drops forward and the hips visibly sink in the same stroke'],
+ flare:['Knee flare (0 to 3)','Judged over the last 15m: 0 none, 1 slight, 2 clear, 3 heavy, meaning knees visibly wider than the hips at the end of the recovery'],
+ fps:['Frame rate','Marks are read frame by frame to the nearest frame. Error is about ±1 frame per mark: ±0.03s at 30fps, ±0.017s at 60fps'],
+ cam:['Camera','Same side, height and angle every race, with the rope markers visible, ideally 60fps. Note it if the angle differs']};
+$('#defs').innerHTML='<table><tr><th>Measure</th><th>Definition</th></tr>'+Object.values(DEF).map(d=>`<tr><td><b>${d[0]}</b></td><td>${d[1]}.</td></tr>`).join('')+'</table>';
+const hint=k=>DEF[k][1].split('. ')[0];
+function geo(ev,co){const L=co==='LC'?50:25,P=[{p:15,n:'15m mark',k:'s'}];let t=0;for(let w=L;w<ev;w+=L){t++;P.push({p:w-5,n:`Turn ${t} in (5m)`,k:'i'},{p:w+15,n:`Turn ${t} out (15m)`,k:'o'})}P.push({p:ev,n:'Finish',k:'f'});return{L,P}}
+function segs(sw){const d=sw.detail,g=geo(sw.event,sw.course);if(!d||!d.marks||d.marks.length!==g.P.length-1)return null;const T=[0,...d.marks,sw.time],K={s:'start',i:'swim',o:'turn',f:'to finish'};let pp=0;return g.P.map((q,i)=>{const dur=T[i+1]-T[i],r={from:pp,to:q.p,dist:q.p-pp,dur,cum:T[i+1],v:(q.p-pp)/dur,k:K[q.k],turn:q.k==='o'};pp=q.p;return r})}
+function catSegs(sw){const S=segs(sw);if(!S)return null;const K={start:'start',swim:'swim',turn:'turn','to finish':'finish'},g={};S.forEach(s=>{const k=K[s.k];if(!k)return;(g[k]=g[k]||{dist:0,dur:0,n:0});g[k].dist+=s.dist;g[k].dur+=s.dur;g[k].n++});for(const k in g)g[k].spd=g[k].dist/g[k].dur;return g}
+function comp(e,c){const A=state.swims.filter(s=>s.event===e&&s.course===c).map(segs).filter(Boolean);return A.length?A[0].map((_,i)=>Math.min(...A.map(a=>a[i].dur))):null}
+function mets(sw){const d=sw.detail,m={};if(!d)return m;const g=geo(sw.event,sw.course);
+ if(d.marks&&d.marks.length===g.P.length-1){m.t15=d.marks[0];m.turns=[];for(let i=1;i+1<d.marks.length;i+=2)m.turns.push(d.marks[i+1]-d.marks[i]);if(m.turns.length)m.turn=avg(m.turns)}
+ const pl=(d.pulls||[]).filter(x=>x!=null),pt=(d.ptimes||[]).filter(x=>x!=null),ps=(d.pulls||[]).map((x,i)=>x!=null&&d.ptimes&&d.ptimes[i]?x/d.ptimes[i]:null).filter(x=>x!=null);
+ if(pl.length)m.pull=avg(pl);if(pt.length)m.ptime=avg(pt);if(ps.length)m.pspeed=avg(ps);
+ if(d.strokes&&d.pulls&&d.strokes.every(x=>x>0)&&d.pulls.every(x=>x!=null))m.dps=d.strokes.reduce((a,_,i)=>a+g.L-d.pulls[i],0)/d.strokes.reduce((a,b)=>a+b,0);
+ const cs=catSegs(sw);if(cs)for(const k in cs)m['cat'+k]=cs[k].spd;
+ return m}
+function bars(it,f){const W=620,H=240,P={l:46,r:12,t:18,b:40};let lo=Math.min(0,...it.map(i=>i.v)),hi=Math.max(0,...it.map(i=>Math.max(i.v,i.ref||0)));const pd=((hi-lo)||1)*.14;hi+=pd;if(lo<0)lo-=pd;
+ const x0=it[0].x0,x1=it[it.length-1].x1,X=x=>P.l+(x-x0)/(x1-x0)*(W-P.l-P.r),Y=v=>P.t+(hi-v)/(hi-lo)*(H-P.t-P.b);
+ let o=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+ for(let i=0;i<=3;i++){const t=lo+(hi-lo)*i/3;o+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="#e3ecf0"/><text x="${P.l-6}" y="${Y(t)+4}" text-anchor="end">${f(t)}</text>`}
+ o+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="#9fb4c0"/>`;
+ it.forEach(i=>{const xa=X(i.x0)+2,w=X(i.x1)-X(i.x0)-4,ya=Y(Math.max(i.v,0)),h=Math.max(Math.abs(Y(i.v)-Y(0)),1);
+  o+=`<rect x="${xa}" y="${ya}" width="${w}" height="${h}" rx="2" fill="${i.c}"><title>${i.label} ${i.sub}: ${f(i.v)}</title></rect><text x="${xa+w/2}" y="${i.v>=0?ya-4:ya+h+11}" text-anchor="middle">${f(i.v)}</text><text x="${xa+w/2}" y="${H-22}" text-anchor="middle">${i.label}</text><text x="${xa+w/2}" y="${H-9}" text-anchor="middle">${i.sub}</text>`;
+  if(i.ref)o+=`<line x1="${xa}" x2="${xa+w}" y1="${Y(i.ref)}" y2="${Y(i.ref)}" stroke="#0d2b3a" stroke-width="2" stroke-dasharray="4 2"/>`});
+ return o+'</svg>'}
+
+let dCur=null;
+function detailSel(){const s=$('#dSel'),cur=s.value,L=[...state.swims].sort((a,b)=>a.date<b.date?1:-1);
+ s.innerHTML=L.map(x=>`<option value="${x.id}">${fd(x.date)} · ${x.event}m ${x.course} · ${fmt(x.time)} · ${TN[x.type]}${x.detail?' ◆':''}</option>`).join('');
+ if(L.some(x=>x.id===cur))s.value=cur;
+ if(s.value!==dCur){dCur=s.value;detailForm()}detailOut()}
+function detailForm(){const sw=state.swims.find(s=>s.id===$('#dSel').value),el=$('#dForm');if(!sw){el.innerHTML='<div class="empty">Log a swim first, then add its race detail here.</div>';return}
+ const d=sw.detail||{},g=geo(sw.event,sw.course),nl=sw.event/g.L,ky={s:'t15',i:'in',o:'out'};
+ const inp=(id,lab,k,val,ph)=>`<label${k?` title="${esc(DEF[k][1])}"`:''}>${lab}<input id="${id}" value="${val==null?'':val}" placeholder="${ph||''}" size="8" autocomplete="off">${k?`<span class="hint">${esc(hint(k))}</span>`:''}</label>`;
+ const sel=(id,lab,k,opts,val)=>`<label${k?` title="${esc(DEF[k][1])}"`:''}>${lab}<select id="${id}"><option value="">–</option>${opts.map(o=>`<option${String(val)===o?' selected':''}>${o}</option>`).join('')}</select>${k?`<span class="hint">${esc(hint(k))}</span>`:''}</label>`;
+ const pn=i=>i?`Turn ${i} pullout`:'Start';
+ el.innerHTML=`<h3>Context</h3><div class="fg">${sel('dRound','Round',0,['Heat','Semi','Final','Other'],d.round)}${inp('dPlace','Place',0,d.place,'e.g. 3')}${inp('dFps','Video fps','fps',d.fps,'30 or 60')}${inp('dRt','Reaction time (s)','rt',d.rt,'0.68')}</div>
+ <h3>Timing marks (cumulative from the start signal)</h3><div class="fg">${g.P.slice(0,-1).map((q,i)=>inp('m'+i,q.n,ky[q.k],d.marks&&d.marks[i]!=null?fmt(d.marks[i]):'','m:ss.hh')).join('')}</div>
+ <h3>Pullouts</h3><div class="fg">${[...Array(nl)].map((_,i)=>inp('b'+i,pn(i)+' breakout (m)','bd',d.pulls&&d.pulls[i],'e.g. 9.5')+inp('u'+i,pn(i)+' breakout time (s)','bt',d.ptimes&&d.ptimes[i],'e.g. 4.4')).join('')}</div>
+ <h3>Strokes per length</h3><div class="fg">${[...Array(nl)].map((_,i)=>inp('k'+i,`Length ${i+1}`,i?0:'str',d.strokes&&d.strokes[i],'count')).join('')}</div>
+ <h3>Technique</h3><div class="fg">${sel('dKick','Pullout kick','kick',['Narrow','OK','Wide'],d.kick)}${sel('dNod','Head nod / hip drop','nod',['yes','no'],d.nod)}${sel('dFlare','Knee flare','flare',['0','1','2','3'],d.flare)}</div>
+ <button id="dSave">Save race detail</button> <span id="dErr" style="font-size:.85rem;color:var(--sc)"></span>`}
+function saveDetail(){const sw=state.swims.find(s=>s.id===$('#dSel').value);if(!sw)return;const g=geo(sw.event,sw.course),nm=g.P.length-1,nl=sw.event/g.L,er=t=>$('#dErr').textContent=t,v=id=>$('#'+id).value.trim(),num=id=>{const x=parseFloat(v(id).replace(',','.'));return isNaN(x)?null:x};
+ const raw=[...Array(nm)].map((_,i)=>v('m'+i)),marks=raw.map(parseT),any=raw.some(x=>x);
+ if(any){if(marks.some(x=>x==null))return er('Fill in every timing mark (m:ss.hh or ss.hh), or leave them all blank.');if(marks.some((x,i)=>x<=(marks[i-1]||0))||marks[nm-1]>=sw.time)return er('Marks must increase and be earlier than the finish time.')}
+ const ar=k=>[...Array(nl)].map((_,i)=>num(k+i)),d={round:v('dRound'),place:num('dPlace'),fps:num('dFps'),rt:num('dRt'),marks:any?marks:null,pulls:ar('b'),ptimes:ar('u'),strokes:ar('k'),kick:v('dKick'),nod:v('dNod'),flare:v('dFlare')===''?null:+v('dFlare')};
+ const empty=!d.round&&d.place==null&&!d.fps&&d.rt==null&&!d.marks&&![...d.pulls,...d.ptimes,...d.strokes].some(x=>x!=null)&&!d.kick&&!d.nod&&d.flare==null;
+ if(empty)delete sw.detail;else sw.detail=d;save();render();er(empty?'Nothing to save.':'Saved.')}
+function detailOut(){const sw=state.swims.find(s=>s.id===$('#dSel').value),el=$('#dOut');if(!sw||!sw.detail){el.innerHTML='';return}
+ const d=sw.detail,S=segs(sw),m=mets(sw),bc=comp(sw.event,sw.course),f2=x=>x.toFixed(2);
+ const chips=[d.round&&d.round+(d.place?`, place ${d.place}`:''),!d.round&&d.place&&`Place ${d.place}`,m.t15!=null&&`15m ${fmt(m.t15)}`,m.turns&&m.turns.length&&`Turns ${m.turns.map(fmt).join(' / ')}`,m.pull!=null&&`Breakouts ${d.pulls.map(x=>x==null?'–':x+'m').join(' / ')}`,m.pspeed!=null&&`Pullout speed ${f2(m.pspeed)} m/s`,m.dps!=null&&`${f2(m.dps)}m per stroke (${d.strokes.join('/')})`,d.rt!=null&&`Reaction ${f2(d.rt)}`].filter(Boolean);
+ let h='<h3>This race</h3><div style="margin-top:6px">'+chips.map(c=>`<span class="chip">${esc(c)}</span>`).join('')+'</div>';
+ if(!S)h+='<p class="sub">Add every timing mark to unlock the segment table, velocity profile and time-loss chart.</p>';
+ else{const sg=x=>(x>0?'+':'')+x.toFixed(2);
+  h+=`<h3>Segments</h3><div class="scroll"><table><tr><th>Segment</th><th>Distance</th><th>Split</th><th>Cumulative</th><th>Speed</th><th>vs your best</th></tr>${S.map((s,i)=>`<tr><td>${s.from}–${s.to}m ${s.k}</td><td>${s.dist}m</td><td>${f2(s.dur)}</td><td>${fmt(s.cum)}</td><td>${f2(s.v)} m/s</td><td>${sg(s.dur-bc[i])}</td></tr>`).join('')}</table></div>`+(d.fps?`<p class="hint">Timing error is roughly ±${(2/d.fps).toFixed(2)}s per segment (±1 frame per mark at ${d.fps}fps).</p>`:'');
+  h+=`<div class="charts"><div><h3>Velocity by segment</h3>${bars(S.map((s,i)=>({x0:s.from,x1:s.to,v:s.v,ref:s.dist/bc[i],label:`${s.from}–${s.to}m`,sub:s.k,c:s.turn?'#e89b2c':'var(--lc)'})),x=>x.toFixed(2))}<div class="legend">Bars are m/s. Dashed tick is your best speed in that segment. Orange is the turn zone.</div></div>
+  <div><h3>Time lost vs your best segments</h3>${bars(S.map((s,i)=>({x0:i,x1:i+1,v:s.dur-bc[i],label:`${s.from}–${s.to}m`,sub:s.k,c:s.dur-bc[i]>.005?'var(--sc)':'var(--ok)'})),sg)}<div class="legend">Seconds against the best-ever split for each segment. Log more races for a meaningful comparison.</div></div></div>`}
+ el.innerHTML=h}
+function analysis(){const v=V(),evs=EV.filter(e=>v.ev==='all'||+v.ev===e),cos=CO.filter(c=>v.co==='all'||v.co===c),k=$('#mSel').value,MF={t15:fmt,turn:fmt,ptime:fmt,pull:x=>x.toFixed(1)+'m',pspeed:x=>x.toFixed(2)+' m/s',dps:x=>x.toFixed(2)+'m',catstart:x=>x.toFixed(2)+' m/s',catswim:x=>x.toFixed(2)+' m/s',catturn:x=>x.toFixed(2)+' m/s',catfinish:x=>x.toFixed(2)+' m/s'},INV={pspeed:1,dps:1,catstart:1,catswim:1,catturn:1,catfinish:1};let ch='',ins=[];
+ for(const e of evs){const S=cos.map(c=>({co:c,pts:list(e,c,'all').filter(s=>s.detail&&mets(s)[k]!=null).map(s=>({...s,time:mets(s)[k]}))}));
+  if(S.some(s=>s.pts.length))ch+=`<div class="card" style="margin:0"><h2>${e}m: ${$('#mSel').selectedOptions[0].text}</h2>${chart(S,[],{f:MF[k],plain:true,invert:!!INV[k]})}<div class="legend">${cos.map(c=>`<span><i class="dot" style="background:var(--${c.toLowerCase()})"></i>${CN[c]}</span>`).join('')}</div></div>`;
+  for(const c of cos){const R=state.swims.filter(s=>s.event===e&&s.course===c&&s.detail),bc=comp(e,c),n=`<b>${e}m ${c}</b>`;
+   if(bc){const tot=bc.reduce((a,b)=>a+b,0),pb=Math.min(...list(e,c,'all').map(s=>s.time)),g=state.goals[e+'-'+c],na=R.filter(segs).length;
+    ins.push(`${n}: your best segments from ${na} race(s) stitch to a composite ${fmt(tot)}, ${(pb-tot).toFixed(2)}s under your PB.`+(g?(tot>g?` Goal ${fmt(g)} is still ${(tot-g).toFixed(2)}s faster than that composite.`:` That composite already beats your goal ${fmt(g)} by ${(g-tot).toFixed(2)}s.`):''))}
+   const cmp=(nm,fn)=>{const a=R.filter(s=>fn(s)===true),b=R.filter(s=>fn(s)===false);if(a.length>=2&&b.length>=2)ins.push(`${n}: ${nm} averaged ${fmt(avg(a.map(s=>s.time)))} (${a.length} swims) vs ${fmt(avg(b.map(s=>s.time)))} without (${b.length}), ${(avg(a.map(s=>s.time))-avg(b.map(s=>s.time))).toFixed(2)}s difference. Small sample and not adjusted for fitness, so treat it as a pointer.`)};
+   cmp('swims with a head nod / hip drop',s=>s.detail.nod?s.detail.nod==='yes':null);cmp('swims with a wide pullout',s=>s.detail.kick?s.detail.kick==='Wide':null);cmp('swims with knee flare 2+',s=>s.detail.flare==null?null:s.detail.flare>=2);
+   const RCS=R.map(r=>({r,cs:catSegs(r)})).filter(x=>x.cs),CS=RCS.map(x=>x.cs),CN2={start:'dive segment (0–15m)',swim:'open-water swimming',turn:'turn (wall execution)',finish:'finish length'};
+   if(CS.length){const tot=CS.map(x=>Object.values(x).reduce((a,b)=>a+b.dur,0));
+    const shares=['start','swim','turn','finish'].map(k=>{const rows=CS.map((x,i)=>x[k]?x[k].dur/tot[i]:null).filter(x=>x!=null);return rows.length?{k,pct:avg(rows)*100,n:rows.length}:null}).filter(Boolean);
+    if(shares.length)ins.push(`${n}: on average, ${shares.map(s=>`${CN2[s.k]} is ${s.pct.toFixed(0)}%`).join(', ')} of total race time.`);
+    const spds=['start','swim','turn','finish'].map(k=>{const rows=CS.filter(x=>x[k]).map(x=>x[k].spd);return rows.length?{k,spd:avg(rows),n:rows.length}:null}).filter(Boolean);
+    const sd0=spds.find(s=>s.k==='start'),td=spds.find(s=>s.k==='turn');
+    if(sd0&&td)ins.push(`${n}: dive segments average ${sd0.spd.toFixed(2)} m/s vs ${td.spd.toFixed(2)} m/s off the wall, so turns are ${Math.abs(td.spd-sd0.spd).toFixed(2)} m/s ${td.spd>sd0.spd?'faster':'slower'} than the dive.`);
+    spds.forEach(sp=>{if(sp.n<4)return;const series=RCS.filter(x=>x.cs[sp.k]).map(x=>({d:dt(x.r.date),time:x.cs[sp.k].spd}));if(series.length<4)return;const sl=slope(series);if(sl!=null)ins.push(`${n}: ${CN2[sp.k]} speed has been ${sl>0?'increasing':'decreasing'} by about ${Math.abs(sl).toFixed(2)} m/s a month over your logged races (small sample, take as a pointer).`)})}}}
+ $('#aOut').innerHTML=ch||ins.length?`<div class="charts" style="margin-bottom:12px">${ch}</div><ul>${ins.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<div class="empty">Save race detail on a few swims to see trends, composites and technique comparisons.</div>'}
+$('#dSel').onchange=()=>{dCur=$('#dSel').value;detailForm();detailOut()};$('#mSel').onchange=analysis;
+document.addEventListener('click',e=>{if(e.target.id==='dSave')saveDetail();const id=e.target.dataset&&e.target.dataset.detail;if(id){$('#dSel').value=id;dCur=id;detailForm();detailOut();$('#race').scrollIntoView({behavior:'smooth'})}});
+
+render();
+</script>
+</body>
+</html>
